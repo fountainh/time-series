@@ -1,0 +1,814 @@
+import dash
+import time
+import flask
+import hashlib
+import dash_core_components as dcc
+import dash_html_components as html
+import plotly.express as px
+import dash
+from flask import request
+import numpy as np
+import datetime
+import re
+import dash_html_components as html
+import dash_core_components as dcc
+import plotly.express as px
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import pandas as pd
+from dash.dependencies import Input, Output
+import plotly.express as px
+import plotly.graph_objs as go
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import pandas as pd
+import pandas as pd
+from dateutil.relativedelta import relativedelta
+import json
+import urllib
+import random
+import time
+from random import randrange
+from azure.storage.blob import BlockBlobService
+from io import StringIO
+from azure.storage.blob import AppendBlobService
+import statsmodels
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.stattools import acf,pacf
+from matplotlib import pyplot as plt
+from statsmodels.tsa.arima_model import ARIMA
+import dash_daq as daq
+import statsmodels.api as sm
+
+import pandas as pd
+
+import json
+import urllib
+import random
+import time
+from random import randrange
+from azure.storage.blob import BlockBlobService
+from io import StringIO
+from azure.storage.blob import AppendBlobService
+import dash
+import numpy as np
+import datetime
+import re
+import dash_html_components as html
+import dash_core_components as dcc
+import plotly.express as px
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import pandas as pd
+from dash.dependencies import Input, Output
+import plotly.express as px
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import pandas as pd
+import pandas as pd
+from dateutil.relativedelta import relativedelta
+import json
+import urllib
+import random
+import time
+from random import randrange
+from azure.storage.blob import BlockBlobService
+from io import StringIO
+from azure.storage.blob import AppendBlobService
+import statsmodels
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.stattools import acf,pacf
+from matplotlib import pyplot as plt
+from statsmodels.tsa.arima_model import ARIMA
+import dash_daq as daq
+import pmdarima as pm
+import numpy as np
+import pmdarima as pm
+from pmdarima import pipeline
+from pmdarima import model_selection
+from pmdarima import preprocessing as ppc
+from pmdarima import arima
+import pickle
+import json
+
+
+def writeFigToBlob(output_fig,blobname):
+  accountName = ""
+  accountKey  = ""
+  containerName = ""
+  blobname="memoized/"+ blobname
+  output_json = output_fig.to_json()
+  blobService = BlockBlobService(account_name=accountName, account_key=accountKey)
+  blobService.create_blob_from_text(containerName, blobname+".json", output_json)
+ 
+ 
+def readFigFromBlob(blobname):
+   accountName = ""
+   accountKey = ""
+   containerName = ""
+   blobname="memoized/"+ blobname+".json"
+   try:
+     blobService = BlockBlobService(account_name=accountName, account_key=accountKey) 
+     result = blobService.get_blob_to_text(containerName,blobname)
+     dict_json=json.loads(result.content)   
+     return go.Figure(dict_json)
+   except:
+     return None   
+  
+
+param_config_indexed={
+        0:[ 0,1,0,0,0,0],
+        1:[ 0,1,0,0,1,0],
+        2:[ 0,1,0,0,1,1],
+        3:[ 0,1,1,0,1,1]
+}
+
+def readModelFromBlob(blobname):   
+   blobname='testmodel4'+blobname
+   accountName = ""
+   accountKey = ""
+   containerName = ""   
+   blobName=blobname+".pkl"
+   blobService = BlockBlobService(account_name=accountName, account_key=accountKey) 
+   result = blobService.get_blob_to_bytes(containerName,blobName)
+   return pickle.loads(result.content)
+   
+def writeModelToBlob(output_model,blobname):
+  blobname="testmodel4"+blobname
+  accountName = ""
+  accountKey  = ""
+  containerName = ""
+  output = pickle.dumps (output_model)
+  blobService = BlockBlobService(account_name=accountName, account_key=accountKey)
+  blobService.create_blob_from_bytes(containerName, blobname+".pkl", output)
+  
+  
+acffig=None
+user_params=dict()
+def readBlob(blobname):
+   accountName = ""
+   accountKey = ""
+   containerName = ""
+   blobName=blobname+".csv"
+   blobService = BlockBlobService(account_name=accountName, account_key=accountKey) 
+   result = blobService.get_blob_to_text(containerName,blobName)
+   return pd.read_csv(StringIO(result.content))
+
+
+
+    
+def date_transform(row): 
+    dt_obj= datetime.datetime.strptime(  (re.sub('[\-][12][90]','-',row['DATE'].replace('/','-'))), '%m-%d-%y').date()
+    if (dt_obj.year>2020):
+        dt_obj=dt_obj.replace(dt_obj.year-100)
+    row['fDate']=dt_obj
+    return row
+ 
+def get_ACF(residuals,partial=True):
+  if(partial):  
+    acf_vals=pacf(residuals['Residuals'].shift(0),nlags=40,alpha=0.04)
+    acf_title='Partial Auto-correlation Plot '
+  else:
+     acf_vals=acf(residuals['Residuals'].shift(0),nlags=40,alpha=0.04)
+     acf_title='Auto-correlation Plot '
+  df_acf=pd.DataFrame({'lags':list(range(0,len(acf_vals[0]))) ,'ac':list(acf_vals[0])})  
+  df_upperconf=pd.DataFrame({'lags':list(range(0,len(acf_vals[0]))) ,'confInterval':[x[1] for x in acf_vals[1]]})
+  df_lowerconf=pd.DataFrame({'lags':list(range(0,len(acf_vals[0]))) ,'confInterval':[x[0] for x in acf_vals[1]]})
+  acffig=px.bar(x=df_acf['lags'],y=df_acf['ac'],template='plotly_dark', labels={'x':'Lags', 'y':'Auto Correlation levels'},title='ACF Plot')
+  acffig.update_traces(textfont_size=15,marker_line_color='#FFFFFF', marker_line_width=2)
+  acffig.add_scatter(x=df_upperconf['lags'], y=df_upperconf['confInterval']-df_acf['ac'],mode='lines+text',name='Upper CI',fill='tozeroy',line_color='goldenrod')
+  acffig.add_scatter(x=df_lowerconf['lags'], y=df_lowerconf['confInterval']-df_acf['ac'],mode='lines+text',name='Lower CI',fill='tozeroy',line_color='goldenrod')  
+  acffig.update_annotations(dict(xref="x",yref="y",showarrow=True,arrowhead=5,ax=50,ay=-40))
+  acffig.update_layout(title={'text': acf_title,'y':0.9,'x':0.5,'xanchor': 'center','yanchor': 'top'})
+  return acffig
+
+
+def getSessionId():
+    if(request) :   
+      base = str(request.remote_addr)+str(request.headers.get("User-Agent"))
+      hsh = hashlib.md5()
+      hsh.update(base.encode("utf8"))	 
+      return str(hsh.digest())
+    return ""
+
+def getTrainingLimit(tlimit_index):
+      all_months=(df_ts['CPIDATA'].shape[0])
+      return all_months-((tlimit_index)*12)-1
+
+def fit_arima(p,d,q,sp=0,sd=0,sq=0,sf=0,tlimit=0):  
+  my_seasonal_order=(sp,sd,sq,12)  
+  transf_list=[]
+  sadjflag=0  
+  if (getSessionId() in user_params):
+             lst_params=user_params[getSessionId()]
+             sadjflag=lst_params[7]             
+  if (sf>0):
+    fourier_term=("fourier", ppc.FourierFeaturizer(m=12, k=4))
+    transf_list.append(fourier_term)   
+  mname_lst=[p,d,q,sp,sd,sq,sadjflag]
+  model_arima=pm.ARIMA(order=(p,d,q),seasonal_order=my_seasonal_order)  
+  transf_list.append(("arima",model_arima))  
+  pipe = pipeline.Pipeline(transf_list)    
+  modelblob_name=''.join(map(str,mname_lst))  
+  if (tlimit!=0):
+     model_fit = pipe.fit(df_ts['CPIDATA'][:tlimit])
+  else:
+     model_fit = pipe.fit(df_ts['CPIDATA'])
+  residuals=None
+  if (tlimit==0):
+    residuals = pd.DataFrame(getResiduals(model_fit),columns=['Residuals'])  
+    residuals.index=df_ts.index
+    residuals=residuals[1:]
+  return model_fit,residuals
+
+
+def getResidualPlot(residualDF):
+  t = np.linspace(0, 2*np.pi, 100)
+  reslen=residualDF.shape[0]
+  fig = px.line(x=residualDF.index.format(), y=residualDF['Residuals'],template='plotly_dark', labels={'x':'Date', 'y':'Consumer Price Index'},title='Residuals')
+  fig.add_scatter(x=residualDF.index.format(), y=residualDF['Residuals'].rolling(window=12).std().fillna(0),mode='lines+text',name='12 Month Rolling Variance',line_color='red')
+  fig.add_scatter(x=residualDF.index.format(), y=residualDF['Residuals'].rolling(window=12).mean().fillna(0),mode='lines+text',name='12 Month Rolling Mean',line_color='goldenrod')
+  return fig
+
+
+def fitModelAndGetACF(p,d,q,sp=0,sd=0,sq=0,sf=0):
+   model_fit=fit_arima(p,d,q,sp,sd,sq,sf)
+   residuals=model_fit[1]
+   pacffig=get_ACF(residuals,partial=True)
+   acffig=get_ACF(residuals,partial=False)
+   return acffig,pacffig
+
+def addAnnotation(fig,ix,iy,iText):
+    fig.add_annotation(
+        x=ix,
+        y=iy,
+        xref="x",
+        yref="y",
+        text=iText,
+        showarrow=True,
+        font=dict(
+            family="Calibri, monospace",
+            size=16,
+            color="#000000"
+            ),
+        align="center",
+        arrowhead=2,
+        arrowsize=1,
+        arrowwidth=2,
+        arrowcolor="#c7c7c7",
+        ax=50,
+        ay=-40, 
+        bordercolor="#0000ff",
+        borderwidth=2,
+        borderpad=4,
+        bgcolor="#ffffff",
+        opacity=0.8
+        )  
+    return fig
+
+def applyAnnotation(model,partial,fig): 
+ model_name=getModelNames(model).strip()  
+ if model_name not in annot_config:
+    return fig
+ acf_pacf_lst=annot_config[model_name]
+ acf_lst=acf_pacf_lst[0]
+ pacf_lst=acf_pacf_lst[1] 
+ if (partial):
+    for pacf in pacf_lst:
+        pacf_x=pacf[0]
+        pacf_y=pacf[1]
+        pacf_text=pacf[2]
+        addAnnotation(fig,pacf_x,pacf_y,pacf_text)
+        return fig
+ else:
+    for acf in acf_lst:
+        acf_x=acf[0]
+        acf_y=acf[1]
+        acf_text=acf[2]
+        addAnnotation(fig,acf_x,acf_y,acf_text)
+        return fig
+
+def date_transform_nadj(row): 
+    dt_obj= datetime.datetime.strptime(row['DATE'][2:], '%y-%m-%d').date()
+    if (dt_obj.year>2020):
+        dt_obj=dt_obj.replace(dt_obj.year-100)
+    row['fDate']=dt_obj
+    return row
+   
+def getResiduals(inputPipe):
+  return (pd.Series(df_ts['CPIDATA'].values)-pd.Series(inputPipe.predict_in_sample()))
+
+
+initACF=None
+initPACF=None
+
+df_ts=readBlob('CPIAUCNS_1')
+df_ts['CPIDATA']=df_ts['CPIAUCNS']
+df_ts['fDate']=df_ts['DATE']       
+df_ts=df_ts.apply(date_transform_nadj,axis=1)
+df_ts=df_ts[409:]
+df_ts.set_index(pd.DatetimeIndex(df_ts['fDate']).to_period('M'),inplace=True)
+
+
+
+
+
+def readBlob(blobname):
+   accountName = ""
+   accountKey = ""
+   containerName = ""
+   blobName=blobname+".csv"
+   blobService = BlockBlobService(account_name=accountName, account_key=accountKey) 
+   result = blobService.get_blob_to_text(containerName,blobName)
+   return pd.read_csv(StringIO(result.content))
+
+
+
+    
+
+
+
+
+external_stylesheets = ['https://codepen.io/anon/pen/mardKv.css']
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+server = app.server
+
+
+
+tabs_styles = {
+    'height': '44px'
+}
+tab_style = {
+    'borderBottom': '1px solid #d6d6d6',
+    'padding': '6px'    
+}
+
+def displayInputSignal():
+   fig = px.line(x=df_ts['fDate'], y=df_ts['CPIDATA'],template='plotly_dark', labels={'x':'Date', 'y':'Consumer Price Index'},title='Consumer Price Index -United States')
+   fig.update_layout(title={'text': "Consumer Price Index -United States",'y':0.9,'x':0.5,'xanchor': 'center','yanchor': 'top'})
+   return fig
+
+import datetime
+import re
+
+
+def getModelNames(mod):
+ modname= str(mod.get_params()['steps'][0][1])
+ nmod=modname.replace('intercept','')
+ return nmod 
+
+def pipeForecast(lst_models,fsteps): 
+ lst_futuredates=[]
+ for i in range(1,fsteps+1):
+    lst_futuredates.append(df_ts[-1:]['fDate'].values[0]+ relativedelta(months=i))
+ i=0
+ lst_color=['royalblue','firebrick','goldenrod','green']
+ lst_pltname=list(map(getModelNames,lst_models))
+ fig = px.line(x=df_ts[-48:]['fDate'], y=df_ts[-48:]['CPIDATA'],template='plotly_dark', labels={'x':'Date', 'y':'Consumer Price Index'},title='CPI- Original Series')
+ for model in lst_models:
+  forecast_vals=model.predict(n_periods=10, return_conf_int=True)  
+  upper_conf=[el[1] for el in forecast_vals[1]]
+  lower_conf=[el[0] for el in forecast_vals[1]]
+  fig.update_traces(textfont_size=15,marker_line_color=lst_color[i], marker_line_width=2)
+  fig.add_scatter(x=lst_futuredates, y=upper_conf,mode='lines+text',name='Upper CI'+str(lst_pltname[i]),fill='none',line_color=lst_color[i])
+  fig.add_scatter(x=lst_futuredates, y=lower_conf,mode='lines+text',name='Lower CI'+str(lst_pltname[i]),fill='none',line_color=lst_color[i]) 
+  fig.add_scatter(x=lst_futuredates, y=forecast_vals[0],mode='lines+text',name='Predicted CPI'+str(lst_pltname[i]),line_color=lst_color[i],line=dict(color=lst_color[i],width=4,dash='dash'))
+  i=i+1
+ fig.update_layout(title={'text': "Consumer Price Index- Forecast",'y':0.9,'x':0.5,'xanchor': 'center','yanchor': 'top'}) 
+ return fig
+
+def swforecast(lst_models,training_limit): 
+ fsteps=12
+ i=0
+ lst_color=['green','firebrick','goldenrod','green']
+ lst_pltname=[' Sliding Window Forecast'] 
+ fig = px.line(x=df_ts[-72:training_limit]['fDate'], y=df_ts[-72:training_limit]['CPIDATA'],template='plotly_dark', labels={'x':'Date', 'y':'Consumer Price Index'},title='CPI- Original Series')
+ for model in [lst_models[0]]:
+  forecast_vals=model.predict(n_periods=10, return_conf_int=True)  
+  upper_conf=[el[1] for el in forecast_vals[1]]
+  lower_conf=[el[0] for el in forecast_vals[1]]
+  fig.update_traces(textfont_size=15,marker_line_color=lst_color[i], marker_line_width=2)
+  lst_futuredates=[]
+  for i1 in range(1,fsteps+1):
+     lst_futuredates.append(df_ts['fDate'].values[training_limit]+ relativedelta(months=i1))  
+  fig.add_scatter(x=lst_futuredates, y=upper_conf,mode='lines+text',name='Upper CI'+str(lst_pltname[i]),fill='none',line_color=lst_color[i])
+  fig.add_scatter(x=lst_futuredates, y=lower_conf,mode='lines+text',name='Lower CI'+str(lst_pltname[i]),fill='none',line_color=lst_color[i]) 
+  if (training_limit+12<=df_ts.shape[0]):
+      fig.add_scatter(x=df_ts[training_limit:training_limit+12]['fDate'], y=df_ts[training_limit:training_limit+12]['CPIDATA'],mode='lines+text',name='Actual CPI'+str(lst_pltname[i]),fill='none',line_color='firebrick') 
+  fig.add_scatter(x=lst_futuredates, y=forecast_vals[0],mode='lines+text',name='Predicted CPI'+str(lst_pltname[i]),line_color=lst_color[i],line=dict(color=lst_color[i],width=4,dash='dash'))  
+  
+  i=i+1
+ fig.update_layout(title={'text': "Consumer Price Index- Sliding Window Forecast",'y':0.9,'x':0.5,'xanchor': 'center','yanchor': 'top'})
+ return fig
+  
+
+
+
+    
+
+def displayResiduals(residualDF):
+  t = np.linspace(0, 2*np.pi, 100)
+  reslen=residualDF.shape[0]
+  fig = px.line(x=df_ts['DATE'][0:reslen], y=residualDF,template='plotly_dark', labels={'x':'Date', 'y':'Consumer Price Index'},title='Residuals')
+  fig.add_scatter(x=df_ts['DATE'][1:], y=residualDF.rolling(window=12).std().fillna(0),mode='lines+text',name='12 Month Rolling Variance',line_color='red')
+  fig.add_scatter(x=df_ts['DATE'][1:], y=residualDF.rolling(window=12).mean().fillna(0),mode='lines+text',name='12 Month Rolling Mean',line_color='goldenrod')  
+  return fig
+
+
+   
+tab_selected_style = {
+    'borderTop': '1px solid #000000',
+    'borderBottom': '1px solid #000000',
+    'backgroundColor': '#4149f0', 
+    'color':'white',
+    'padding': '6px'
+}
+
+sliding_window_config=['0','1','2','3']
+training_config=[0,1,2,3]
+
+@app.callback(
+            [Output('swforecast_fig', 'figure'),
+            Output('forecast_fig', 'figure')],			
+             [
+             Input('sliding-window', 'value')
+            ])
+def display_swforecast(lbl):
+  annot_acffig=None
+  annot_pacffig=None
+  lbl=str(lbl)    
+  if (lbl in sliding_window_config):     
+     lbl=int(lbl)
+     memoized_fig_fc=readFigFromBlob(str("Forecast_")+str("_fc_")+str(lbl))
+     memoized_fig_sw=readFigFromBlob(str("Forecast_")+str("_sw_")+str(lbl))	 
+     if ((memoized_fig_fc is not None ) and (memoized_fig_sw is not None)):
+         return memoized_fig_sw,memoized_fig_fc
+     lst_params=param_config_indexed[3]
+     training_limit=getTrainingLimit(lbl)
+     model_fit_sw=fit_arima(lst_params[0],lst_params[1],lst_params[2],lst_params[3],lst_params[4],lst_params[5],tlimit=training_limit)[0]     
+     model_fit=fit_arima(lst_params[0],lst_params[1],lst_params[2],lst_params[3],lst_params[4],lst_params[5],tlimit=0)[0]
+     fig_sw=swforecast([model_fit_sw],training_limit)
+     lst_fc=[model_fit]
+     fig_forecast=pipeForecast(lst_fc,12)
+     writeFigToBlob(fig_forecast,str("Forecast_")+str("_fc_")+str(lbl))
+     writeFigToBlob(fig_sw,str("Forecast_")+str("_sw_")+str(lbl))
+     return fig_sw,fig_forecast  
+  return None
+  
+  
+
+
+@app.callback([Output('acf-ms', 'figure'),Output('pacf-ms', 'figure')],
+              [
+              Input('model-slider', 'value')
+              ])
+def display_value(lbl):
+  annot_acffig=None
+  annot_pacffig=None
+  lbl=int(lbl)
+  if (lbl in param_config_indexed):
+    lst_params=param_config_indexed[lbl]
+    memoized_acffig=readFigFromBlob(str("ModelSelection_")+str("_acf_")+str(lbl))
+    memoized_pacffig=readFigFromBlob(str("ModelSelection_")+str("_pacf_")+str(lbl))
+    if (memoized_acffig is not None ) and (memoized_pacffig is not None):
+        return memoized_acffig,memoized_pacffig
+    acf_lst=fitModelAndGetACF(lst_params[0],lst_params[1],lst_params[2],lst_params[3],lst_params[4],lst_params[5],0)
+    ms_acf_fig=acf_lst[0]
+    ms_pacf_fig=acf_lst[1]
+    model_fit=fit_arima(lst_params[0],lst_params[1],lst_params[2],lst_params[3],lst_params[4],lst_params[5])
+    annot_acffig=applyAnnotation(model_fit[0],False,ms_acf_fig)
+    annot_pacffig=applyAnnotation(model_fit[0],True,ms_pacf_fig)
+    writeFigToBlob(ms_acf_fig,str("ModelSelection_")+str("_acf_")+str(lbl))
+    writeFigToBlob(ms_acf_fig,str("ModelSelection_")+str("_pacf_")+str(lbl))
+    return ms_acf_fig,ms_pacf_fig  
+  return None,None
+  
+ms_tab=html.Div([
+            html.Br(),
+            dcc.Graph(
+                figure=fitModelAndGetACF(0,1,0)[0],id='acf-ms'
+            ),
+            html.Br(),          
+            html.Br(),
+            html.Div([dcc.Slider(id='model-slider',  min=0,max=3,value=0,marks={
+        0: {'label': 'ARIMA(0,1,0)(0,0,0)[12]', 'style': {'color': '#77b0b1'}},
+        1: {'label': 'ARIMA(0,1,0)(0,1,0)[12]'},        
+        2: {'label': 'ARIMA(0,1,0)(0,1,1)[12]', 'style': {'color': '#f50'}},
+        3: {'label': 'ARIMA(0,1,1)(0,1,1)[12]', 'style': {'color': '#f50'}}
+    },
+    included=False)],style={'float':'center','width': '80%','margin-left':'20px','display': 'Block'}),                       
+            html.Br(),          
+            html.Br(),
+            dcc.Graph(
+                figure=fitModelAndGetACF(0,1,0)[1],id='pacf-ms'
+            )
+            ])
+
+sadjflag=0
+lst_params=param_config_indexed[3]
+mod1=fit_arima(lst_params[0],lst_params[1],lst_params[2],lst_params[3],lst_params[4],lst_params[5],tlimit=0)[0]
+lst_mod=[mod1,mod1,mod1,mod1]
+
+
+
+def getfctab(): 
+  mod1=fit_arima(lst_params[0],lst_params[1],lst_params[2],lst_params[3],lst_params[4],lst_params[5],tlimit=0)[0]
+  swforecast_fig=swforecast([mod1],getTrainingLimit(0))
+  return html.Div([
+            html.Br(),
+            dcc.Graph(
+                figure=pipeForecast([mod1],12),id='forecast_fig'
+           ),
+            html.Br(),          
+            html.Br(),
+			html.Div([dcc.Slider(id='sliding-window',  min=0,max=3,value=0,marks={
+        3: {'label': 'Train upto 2017', 'style': {'color': '#77b0b1'}},
+        2: {'label': 'Train upto 2018'},        
+        1: {'label': 'Train upto 2019', 'style': {'color': '#f50'}},
+        0: {'label': 'Train upto 2020', 'style': {'color': '#f50'}}
+    })
+			]),
+			html.Br(),
+            dcc.Graph(
+                figure=swforecast([mod1],getTrainingLimit(0)),id='swforecast_fig'
+           )
+		   ])
+			
+
+
+def getarima_tab():
+     initplots=fitModelAndGetACF(0,1,0)
+     initACFPlot=initplots[0]
+     initPACFPlot=initplots[1]
+     init_mod=fit_arima(0,1,0)
+     initResidualPlot=getResidualPlot(init_mod[1])
+     return html.Div([
+            html.Br(),
+            dcc.Graph(
+                figure=displayInputSignal(),id='inputsignal'
+            ),
+            html.Br(),          
+            html.Br(),
+            
+            html.Div([
+            html.Div(id='hidden-div1',children=[], style={'display':'none'}),html.Div(id='hidden-div2',children=[], style={'display':'none'}),html.Div(id='hidden-div3',children=[], style={'display':'none'}),
+            html.Div([daq.Knob(min=0,max=3,value=0,scale={'labelInterval':1,'interval':1},id='AR-knob',size=100,color='#4149f0',label="Non-Seasonal AR Terms")],style={'float':'left','width': '20%','margin-left':'20px','display': 'Block'}),
+            html.Div([daq.Knob(min=0,max=2,value=2,scale={'labelInterval':1,'interval':1},id='Differencing-knob',size=100,color='#4149f0',label="Non-Seasonal-Differencing Terms")],style={'float':'left','width': '20%','margin-left':'20px','display': 'Block'}), 
+            html.Div([daq.Knob(min=0,max=6,value=3,scale={'labelInterval':1,'interval':1},id='MA-knob',color='#4149f0',size=100,label="Non-Seasonal MA Terms")],style={'float':'left','width': '20%','margin-right':'60px','display': 'Block'}),
+            html.Div([ daq.Joystick(id='fitthemodel-joystick',angle=0,label="Fit Model")],style={'float':'right','width': '20%','margin-top':'40px','margin-right':'120px','display': 'Block'}),
+            #html.Div([html.Div(children='''Fit Selected Model'''),daq.Joystick(id='fitoptimalmodel-joystick',label="Fit Optimal Model",angle=0),html.Div(children='''Fit Optimal Model''')],style={'float':'left','width': '20%','margin-top':'20px','margin-left':'10px','display': 'Block'}),
+            html.Div([daq.BooleanSwitch(on=True,label="Reset Optimal Parameters",color='#4149f0',labelPosition="top",id='optimalfit')  ],style={'float':'left','width': '20%','margin-top':'20px','margin-left':'10px','display': 'Block'})
+            ]),
+            html.Br(),
+            html.Br(),          
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Div([
+            html.Div(id='hidden-div4',children=[], style={'display':'none'}),html.Div(id='hidden-divtemp',children=[], style={'display':'none'}),html.Div(id='hidden-div5',children=[], style={'display':'none'}),html.Div(id='hidden-div6',children=[], style={'display':'none'}),html.Div(id='hidden-div7',children=[], style={'display':'none'}),
+            html.Div([daq.Knob(min=0,max=3,value=0,scale={'labelInterval':1,'interval':1},id='SAR-knob',size=100,color='#4149f0',label="Seasonal AR Terms")],style={'float':'left','width': '20%','margin-left':'20px','display': 'Block'}),
+            html.Div([daq.Knob(min=0,max=2,value=2,scale={'labelInterval':1,'interval':1},id='SDifferencing-knob',size=100,color='#4149f0',label="Seasonal-Differencing Terms")],style={'float':'left','width': '20%','margin-left':'20px','display': 'Block'}), 
+            html.Div([daq.Knob(min=0,max=6,value=3,scale={'labelInterval':1,'interval':1},id='SMA-knob',size=100,color='#4149f0',label="Seasonal MA Terms")],style={'float':'left','width': '20%','margin-left':'20px','display': 'Block'}),            
+            html.Div([daq.BooleanSwitch(on=False,label="Seasonally Adjusted Data",color='#4149f0',labelPosition="top",id='sadj')  ],style={'float':'left','width': '20%','margin-top':'20px','margin-left':'45px','display': 'Block'}),
+            html.Div([daq.BooleanSwitch(on=False,label="Fourier TransForm ",color='#4149f0',labelPosition="top",id='fft')  ],style={'float':'left','width': '20%','margin-top':'20px','margin-left':'45px','display': 'Block'})
+            ]),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),
+            html.Br(),                        
+            dcc.Graph(
+                figure=initACFPlot,id='acf-plots'
+            ),
+            
+           html.Br(),
+           html.Br(),
+           dcc.Graph(
+                figure=initPACFPlot,id='pacf-plots'
+            ),
+           html.Br(),
+           html.Br(),           
+           dcc.Graph(
+                figure=initResidualPlot,id='residual-plots'
+           ),
+            
+            html.Br(),
+            html.Br(),                                
+          ] )
+                   
+app.layout = html.Div([
+        dcc.Tabs(id="tabs-styled-with-inline", value='tab-2', children=[
+        dcc.Tab(label='ARIMA-Modeling', value='tab-2 ',style=tab_style, selected_style=tab_selected_style,children=[getarima_tab()]),
+        dcc.Tab(label='Model Selection', value=' tab-3',style=tab_style, selected_style=tab_selected_style,children=[ms_tab]),
+        dcc.Tab(label='Forecasting', value=' tab-4',style=tab_style, selected_style=tab_selected_style,children=[getfctab()]),        
+    ], style=tabs_styles),
+    html.Div(id='tabs-content-inline')
+])
+
+
+
+@app.callback(Output('inputsignal', 'figure'),
+    [dash.dependencies.Input('sadj', 'on')])
+def update_sadj(sadj):    
+    global df_ts,sadjflag
+    if(str(format(sadj))=='True'):
+      df_ts=readBlob('cpi_tsdata')
+      df_ts['CPIDATA']=df_ts['CPIAUCSL']
+      df_ts['fDate']=df_ts['DATE']
+      df_ts=df_ts.apply(date_transform,axis=1)
+      df_ts.set_index(pd.DatetimeIndex(df_ts['fDate']).to_period('M'),inplace=True)      
+    else:
+       df_ts=readBlob('CPIAUCNS_1')
+       df_ts['CPIDATA']=df_ts['CPIAUCNS']
+       df_ts['fDate']=df_ts['DATE']       
+       df_ts=df_ts.apply(date_transform_nadj,axis=1)
+       df_ts=df_ts[409:]
+       df_ts.set_index(pd.DatetimeIndex(df_ts['fDate']).to_period('M'),inplace=True)
+ 
+    if (getSessionId() in user_params):
+             lst_params=user_params[getSessionId()]
+             lst_params[7]=round(float(sadj))
+             user_params[getSessionId()]=lst_params
+			 
+    return displayInputSignal()
+
+@app.callback([Output('AR-knob', 'value'),Output('Differencing-knob', 'value'),Output('MA-knob', 'value'),
+                             Output('SAR-knob', 'value'),Output('SDifferencing-knob', 'value'),Output('SMA-knob', 'value')],
+    [dash.dependencies.Input('optimalfit', 'on')])
+def update_optimal(opfit):    
+    if(str(format(opfit))=='True'):
+      return 0,1,1,0,1,1
+    if (getSessionId() in user_params):
+      return user_params[getSessionId()][0],user_params[getSessionId()][1],user_params[getSessionId()][2],user_params[getSessionId()][3],user_params[getSessionId()][4],user_params[getSessionId()][5]
+    else:
+      return 0,1,1,0,1,1
+    
+@app.callback(Output('hidden-div7', 'children'),
+[dash.dependencies.Input('fft', 'on')])
+def update_fft(ifft): 
+   global user_params
+   if(str(format(ifft))=='True'):
+     if (getSessionId() in user_params):
+             lst_params=user_params[getSessionId()]
+             lst_params[6]=round(float(ifft))
+             user_params[getSessionId()]=lst_params
+     return None
+
+@app.callback(Output('hidden-div4', 'children'),
+[dash.dependencies.Input('SAR-knob', 'value')])
+def setSARTerms(iSARTerms):
+     global user_params
+     sarTerms=iSARTerms
+     if (getSessionId() in user_params):
+             lst_params=user_params[getSessionId()]
+             lst_params[3]=round(float(sarTerms))
+             user_params[getSessionId()]=lst_params
+     return None
+
+@app.callback(Output('hidden-div1', 'children'),
+[dash.dependencies.Input('AR-knob', 'value')])
+def setARTerms(iARTerms):
+     global user_params
+     arTerms=iARTerms
+     if (getSessionId() in user_params):
+             lst_params=user_params[getSessionId()]
+             lst_params[0]=round(float(arTerms))
+             user_params[getSessionId()]=lst_params
+     return None
+
+@app.callback(Output('hidden-div5', 'children'),
+[dash.dependencies.Input('SDifferencing-knob', 'value')])
+def setSDiffTerms(isdiffTerms):
+     global user_params
+     sdiffTerms=isdiffTerms     
+     if (getSessionId() in user_params):
+        lst_params=user_params[getSessionId()]
+        lst_params[4]=round(float(sdiffTerms))
+        user_params[getSessionId()]=lst_params
+     return None
+
+@app.callback(Output('hidden-div2', 'children'),
+[dash.dependencies.Input('Differencing-knob', 'value')])
+def setDiffTerms(idiffTerms):
+     global user_params
+     diffTerms=idiffTerms     
+     if (getSessionId() in user_params):
+        lst_params=user_params[getSessionId()]
+        lst_params[1]=round(float(diffTerms))
+        user_params[getSessionId()]=lst_params
+     return None
+
+@app.callback(Output('hidden-div6', 'children'),
+[dash.dependencies.Input('SMA-knob', 'value')])
+def setSMATerms(iSMATerms):
+     global user_params
+     smaTerms=iSMATerms     
+     if (getSessionId() in user_params):
+              lst_params=user_params[getSessionId()]
+              lst_params[5]=round(float(smaTerms))
+              user_params[getSessionId()]=lst_params
+     return None
+
+annot_config={
+        'ARIMA(0,1,0)(0,0,0)[12]':[    [[15,0.8,'Sinusoidal Pattern. OCSB Test indicates 1 Seasonal Difference, so Lets take a seasonal difference next step']],[[1,0.5,'PACF cuts off  multicollinearity ']]  ],
+        'ARIMA(0,1,0)(0,1,0)[12]':[    [[25,0.2,'Clear sinusoidal pattern -nearly significant']],   [ [12,0,'Seasonal MA Term decays multiples of 12 lags'] ] ],
+        'ARIMA(0,1,0)(0,1,1)[12]':[    [[1,0,'Non-seasonal Term']] ,   [[1,0.3,'Non-seasonal Term, Try SRT Model']]                  ],
+        'ARIMA(0,1,1)(0,1,1)[12]':[    [[0,0,'White Noise- SRT Model']]         ,[[12,0.1,'White Noise- SRT Model']]             ]
+}
+
+param_config={
+        'ARIMA(0,1,0)(0,0,0)[12]':[ 0,1,0,0,0,0],
+        'ARIMA(0,1,0)(0,1,0)[12]':[ 0,1,0,0,1,0],
+        'ARIMA(0,1,0)(0,1,1)[12]':[ 0,1,0,0,1,1],
+        'ARIMA(0,1,1)(0,1,1)[12]':[ 0,1,1,0,1,1]
+}
+
+
+     
+@app.callback(Output('hidden-div3', 'children'),
+[dash.dependencies.Input('MA-knob', 'value')])
+def setMATerms(iMATerms):
+     global user_params
+     maTerms=iMATerms     
+     if (getSessionId() in user_params):
+              lst_params=user_params[getSessionId()]
+              lst_params[2]=round(float(maTerms))
+              user_params[getSessionId()]=lst_params
+     return None
+
+@app.callback(
+    [dash.dependencies.Output('acf-plots', 'figure'),
+     dash.dependencies.Output('pacf-plots', 'figure'),
+    dash.dependencies.Output('residual-plots', 'figure'),
+    ],
+    [dash.dependencies.Input('fitthemodel-joystick', 'angle'),
+     dash.dependencies.Input('fitthemodel-joystick', 'force'),
+     ])
+def update_acf(angle, force):
+     optimal_knob=False
+     p=0
+     d=1
+     q=0
+     sp=0
+     sd=0
+     sq=0
+     # user_params is a dictionary that maps user-session to knob-selected-parameters
+	 #The below step ensures the output for a request depends on the parameters selected by that specific user
+     if (getSessionId() in user_params):          
+        lst_params=user_params[getSessionId()]      
+        if ((force is not None) and (angle is not None)):
+          if (force>0 or angle>0):              
+              aa=0
+              p=lst_params[0]
+              d=lst_params[1]
+              q=lst_params[2]
+              sp=lst_params[3]
+              sd=lst_params[4]
+              sq=lst_params[5]
+   
+     model_fit=fit_arima(p,d,q,sp,sd,sq) # Fit an Arima model with the given parameters 
+     residuals=model_fit[1] 
+     pacffig=get_ACF(residuals,partial=True)  #Get Partial ACF for the Arima residuals
+     annot_pacffig=applyAnnotation(model_fit[0],True,pacffig) #Lets Annotate the PACF with some insight
+	 
+     acffig=get_ACF(residuals,partial=False) #Get ACF for the Arima residuals
+     annot_acffig=applyAnnotation(model_fit[0],False,acffig)#Lets Annotate the ACF with some insight
+     return annot_acffig,annot_pacffig,getResidualPlot(residuals)
+ 
+@app.callback(Output('tabs-content-inline','children'),
+              [Input('tabs-styled-with-inline', 'value')])
+def render_content(tab):
+    global user_params
+    if len(str(getSessionId() ))!=0:	
+        user_params[getSessionId()]=[0,1,1,0,1,1,0,0]
+    if tab == 'tab-1':
+        return None
+    elif tab == 'tab-2':
+        return getarima_tab()
+    elif tab == 'tab-3':
+        return ms_tab
+    elif tab == 'tab-4':
+        return getfctab()
+
+
+
+if __name__ == '__main__':
+    #app.run_server(debug=True)
+    app.run_server(host='0.0.0.0',port =80)
