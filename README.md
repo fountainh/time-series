@@ -27,4 +27,10 @@ Session Management:
      to serve the specific user's requests for ACF and PACF plots.
      
 
+Whats Next : 
+   1) Automate model selection insights/annotations and generalize code to make this work for any signal ( not just CPI data) 
+   2) Create "Model" layer classes ("Model" as in MVC) . Objects instantiated per user session and encapsulate user knob inputs  and respective outputs 
+      for the respective session. 
+     
+
 
